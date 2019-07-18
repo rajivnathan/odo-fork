@@ -1,0 +1,89 @@
+= Setting up KDO development environment with VSCode
+:toc: macro
+:toc-title:
+:toclevels: 1
+
+toc::[]
+
+== Install Go
+Install go using instructions from https://golang.org/doc/install
+Ensure you test that go is working using the hello world program in the link.
+
+Set $GOPATH to ~/go and $GOBIN to $GOPATH/bin
+
+
+== Install VSCode
+Install vscode from https://code.visualstudio.com/download
+
+== Clone your fork
+ 
+. Clone your fork:
++
+NOTE: The following commands assume that you have the `$GOPATH` environment variable properly set. We highly recommend you place `odo` code into the $GOPATH.
++
+
+----
+$ git clone https://github.com/<YOUR_GITHUB_USERNAME>/odo-fork.git $GOPATH/src/github.com/openshift/odo
+$ cd $GOPATH/src/github.com/openshift/odo
+$ git remote add upstream 'https://github.com/redhat-developer/odo-fork'
+----
++
+When cloning `odo`, the Windows terminal such as PowerShell or CMD may throw a *Filename too long* error. To avoid such an error, set your Git configuration as follows:
++
+----
+$ git config --system core.longpaths true
+----
+
+== Installing the dependency manager and building kdo
+
+. Download `glide`:
++
+----
+$ go get -u github.com/Masterminds/glide
+----
+
+. Check that `glide` is working
++
+----
+$ glide --version
+----
+
+. Install make if you don't already have itself
+
+== Debugging
+
+. Open the odo folder with vscode
+
+. Install the Go extension for VSCode:
+https://marketplace.visualstudio.com/items?itemName=ms-vscode.Go
+
+. Install delve to debug go programs. It can be installed using a command in VSCode.
++
+Open the VSCode Command Palette and use the "Go: Install/Update Tools" command:
++
+Select "dlv" from the options. "golint" and "godef" are also recommended.
++
+. Create a launch configuration similar to:
+
+----
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "odo create nodejs",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}",
+            "env": {},
+            "args": ["create", "nodejs"],
+            "cwd": "/Users/rajiv/git/nodejs-ex"
+        }
+    ]
+}
+----
+
+You can now run the debug command from VSCode's Debug view to invoke odo commands.
