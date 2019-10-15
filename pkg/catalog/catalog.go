@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const DefaultIDPRepo = "https://raw.githubusercontent.com/johnmcollier/iterative-dev-packs/master"
+const DefaultIDPRepo = "https://raw.githubusercontent.com/rajivnathan/iterative-dev-packs/master/"
 const DefaultIDPCatalog = DefaultIDPRepo + "/index.json"
 
 // CatalogEntry represents an entry in the index.json file for IDPs
