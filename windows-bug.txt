@@ -1,0 +1,28 @@
+Validation
+ V  Validating component [2ms]
+
+Configuration changes
+I1128 21:08:49.635709   12648 idptaskimpl.go:29] Namespace: default
+I1128 21:08:49.651709   12648 idptaskimpl.go:78] Using PVC: shared-data-volume-app-rpsz-pvc
+I1128 21:08:49.651709   12648 idptaskimpl.go:82] Service Account: default
+I1128 21:08:49.651709   12648 idptaskimpl.go:90] CWD: C:\work\git\spring-petclinic
+I1128 21:08:49.651709   12648 idptaskimpl.go:172] Checking if Runtime Container has already been deployed...
+ X  Checking to see if a Runtime Container has already been deployed [10s]
+I1128 21:08:59.657804   12648 idptaskimpl.go:183] ===============================
+I1128 21:08:59.658805   12648 idptaskimpl.go:184] Creating a Runtime Container
+ V  Initializing component
+ V  Creating component [53ms]
+I1128 21:08:59.714487   12648 idptaskimpl.go:206] Successfully created a Runtime Container
+I1128 21:08:59.714487   12648 idptaskimpl.go:207] ===============================
+I1128 21:08:59.715486   12648 sync.go:19] Waiting for pod to run
+ V  Checking if the container is up before syncing [14s]
+I1128 21:09:13.815402   12648 sync.go:26] The Pod is up and running: spring-spring-petcl-xxbr-app-897dcfcd6-4lkvx
+ V  Syncing project to the pod spring-spring-petcl-xxbr-app-897dcfcd6-4lkvx [3s]
+ V  Checking to see if the Runtime Container is up before executing the Runtime Tasks [998500ns]
+I1128 21:09:16.338390   12648 taskrunner.go:29] Executing /root/idp/src/.udo/bin/runtime-container-full.sh in the pod spring-spring-petcl-xxbr-app-897dcfcd6-4lkvx
+/bin/sh: 1: /root/idp/src/.udo/bin/runtime-container-full.sh: Permission denied
+I1128 21:09:16.429815   12648 taskrunner.go:33] Error occured while executing command /bin/sh -c /root/idp/src/.udo/bin/runtime-container-full.sh in the pod spring-spring-petcl-xxbr-app-897dcfcd6-4lkvx: error while streaming command: command terminated with exit code 126
+I1128 21:09:16.429815   12648 idptaskimpl.go:243] Error occured while executing command /root/idp/src/.udo/bin/runtime-container-full.sh in the pod : Unable to exec command /bin/sh -c /root/idp/src/.udo/bin/runtime-container-full.sh in the runtime container: error while streaming command: command terminated with exit code 126
+ V  Changes successfully pushed to component
+
+When using udo on windows /root/idp/src/.udo/bin/runtime-container-full.sh was missing the execute permission
