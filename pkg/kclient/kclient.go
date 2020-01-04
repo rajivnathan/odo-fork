@@ -502,6 +502,36 @@ func (c *Client) CreateComponentResources(params CreateArgs, commonObjectMeta me
 	return nil
 }
 
+// CreateDeployment creates a deployment based on the given pod
+func (c *Client) CreateDeployment(pod *corev1.Pod) (*appsv1.Deployment, error) {
+
+	replicas := int32(1)
+	// Generates and deploys a Deployment with an InitContainer to copy over the SupervisorD binary.
+	deployment := appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Deployment",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: pod.ObjectMeta,
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: pod.Labels,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: pod.ObjectMeta,
+				Spec:       pod.Spec,
+			},
+		},
+	}
+
+	deploy, err := c.KubeClient.AppsV1().Deployments(c.Namespace).Create(&deployment)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to create Deployment for %s", pod.ObjectMeta.Name)
+	}
+	return deploy, nil
+}
+
 // CreateService generates and creates the service
 // commonObjectMeta is the ObjectMeta for the service
 // containerPorts is an array of container ports
@@ -563,21 +593,27 @@ func updateEnvVar(deployment *appsv1.Deployment, envVars []corev1.EnvVar) error 
 	return nil
 }
 
-// CreatePod creates a pod with the specifications and tails /dev/null for the entrypoint
-func (c *Client) CreatePod(podName, containerName, image, serviceAccountName string, labels map[string]string, pvcNames, mountPath, subPath []string, privileged bool) (*corev1.Pod, error) {
-	container := []corev1.Container{
-		{
-			Name:            containerName,
-			Image:           image,
-			ImagePullPolicy: corev1.PullAlways,
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: &privileged,
-			},
-			Command: []string{"tail"},
-			Args:    []string{"-f", "/dev/null"},
-			Env:     []corev1.EnvVar{},
-		},
+func GenerateContainerSpec(name, image string, isPrivileged bool) corev1.Container {
+	container := &corev1.Container{
+		Name:            name,
+		Image:           image,
+		ImagePullPolicy: corev1.PullAlways,
+
+		Command: []string{"tail"},
+		Args:    []string{"-f", "/dev/null"},
+		Env:     []corev1.EnvVar{},
 	}
+
+	if isPrivileged {
+		container.SecurityContext = &corev1.SecurityContext{
+			Privileged: &isPrivileged,
+		}
+	}
+
+	return *container
+}
+
+func GeneratePodSpec(podName, namespace, serviceAccountName string, labels map[string]string, containers []corev1.Container, pvcNames, mountPath, subPath []string) (*corev1.Pod, error) {
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Pod",
@@ -585,12 +621,12 @@ func (c *Client) CreatePod(podName, containerName, image, serviceAccountName str
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
-			Namespace: c.Namespace,
+			Namespace: namespace,
 			Labels:    labels,
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: serviceAccountName,
-			Containers:         container,
+			Containers:         containers,
 		},
 	}
 
@@ -600,7 +636,11 @@ func (c *Client) CreatePod(podName, containerName, image, serviceAccountName str
 			return nil, errors.New("Unable to add volumes to the pod: " + err.Error())
 		}
 	}
+	return pod, nil
+}
 
+// CreatePod creates a pod with the specifications
+func (c *Client) CreatePod(pod *corev1.Pod) (*corev1.Pod, error) {
 	pod, err := c.KubeClient.CoreV1().Pods(c.Namespace).Create(pod)
 	if err != nil {
 		return nil, errors.New("Unable to create the pod: " + err.Error())

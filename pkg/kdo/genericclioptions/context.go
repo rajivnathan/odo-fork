@@ -10,6 +10,7 @@ import (
 
 	"github.com/redhat-developer/odo-fork/pkg/component"
 	"github.com/redhat-developer/odo-fork/pkg/config"
+	"github.com/redhat-developer/odo-fork/pkg/devfile"
 	"github.com/redhat-developer/odo-fork/pkg/idp"
 	"github.com/redhat-developer/odo-fork/pkg/kclient"
 	"github.com/redhat-developer/odo-fork/pkg/kdo/util"
@@ -282,9 +283,17 @@ func newContext(command *cobra.Command, createAppIfNeeded bool) *Context {
 	outputFlag := FlagValueIfSet(command, OutputFlagName)
 
 	var devPack *idp.IDP
+	var devfileInstance *devfile.Devfile
 	// Get the IDP for the component if the config file exists
 	if lci.ConfigFileExists() {
 		devPack, err = idp.Get()
+		// If the config file exists but there's a problem reading the idp.yaml then there's a problem
+		if err != nil {
+			errors.Wrapf(err, "Unable to read the idp.yaml for %s from disk", lci.GetName())
+			util.LogErrorAndExit(err, "")
+		}
+
+		devfileInstance, err = devfile.Load()
 		// If the config file exists but there's a problem reading the idp.yaml then there's a problem
 		if err != nil {
 			errors.Wrapf(err, "Unable to read the idp.yaml for %s from disk", lci.GetName())
@@ -300,6 +309,7 @@ func newContext(command *cobra.Command, createAppIfNeeded bool) *Context {
 		OutputFlag:  outputFlag,
 		command:     command,
 		DevPack:     devPack,
+		Devfile:     devfileInstance,
 	}
 
 	// create a context from the internal representation
@@ -338,6 +348,7 @@ type internalCxt struct {
 	cmp         string
 	OutputFlag  string
 	DevPack     *idp.IDP
+	Devfile     *devfile.Devfile
 }
 
 // Component retrieves the optionally specified component or the current one if it is set. If no component is set, exit with

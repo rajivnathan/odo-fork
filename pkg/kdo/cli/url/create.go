@@ -20,18 +20,16 @@ var (
 	urlCreateShortDesc = `Create a URL for a component`
 	urlCreateLongDesc  = ktemplates.LongDesc(`Create a URL for a component.
 
-	The created URL can be used to access the specified component from outside the OpenShift cluster.
+	The created URL can be used to access the specified component from outside the cluster.
 	`)
 	urlCreateExample = ktemplates.Examples(`
 
   	# Create a URL with a specific port
-	%[1]s ingressDomain --port 8080
+	%[1]s example.<ingress domain> --port 8080
   
 	# Create a URL by automatic detection of port (only for components which expose only one service port) 
-	%[1]s ingressDomain
+	%[1]s example.<ingress domain>
   
-	# Create a URL with a specific name and port for component frontend
-	%[1]s example --port 8080 --component frontend
 	  `)
 )
 
@@ -61,7 +59,11 @@ func (o *URLCreateOptions) Complete(name string, cmd *cobra.Command, args []stri
 	}
 	// o.urlName = url.GetURLName(o.Component(), o.componentPort)
 	o.urlName = o.Component()
-	o.ingressDomain = args[0]
+	if len(args) == 0 {
+		return fmt.Errorf("An ingress domain must be provided")
+	} else {
+		o.ingressDomain = args[0]
+	}
 	o.localConfigInfo, err = config.NewLocalConfigInfo(o.componentContext)
 
 	return
@@ -104,7 +106,7 @@ func (o *URLCreateOptions) Run() (err error) {
 func NewCmdURLCreate(name, fullName string) *cobra.Command {
 	o := NewURLCreateOptions()
 	urlCreateCmd := &cobra.Command{
-		Use:     name + " [component name]",
+		Use:     name + " [ingress domain]",
 		Short:   urlCreateShortDesc,
 		Long:    urlCreateLongDesc,
 		Example: fmt.Sprintf(urlCreateExample, fullName),

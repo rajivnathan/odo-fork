@@ -19,7 +19,6 @@ const (
 	IDPYaml     = "idp.yaml"
 	RuntimeTask = "Runtime"
 	SharedTask  = "Shared"
-	IDPYamlPath = "/.udo/" + IDPYaml
 )
 
 // IDPArtifact holds the IDP artifacts info

@@ -6,42 +6,41 @@ import (
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
 	"github.com/redhat-developer/odo-fork/pkg/config"
-	"github.com/redhat-developer/odo-fork/pkg/idp"
+	"github.com/redhat-developer/odo-fork/pkg/devfile"
 	"github.com/redhat-developer/odo-fork/pkg/kclient"
 	"github.com/redhat-developer/odo-fork/pkg/log"
-	"github.com/redhat-developer/odo-fork/pkg/storage"
 	"github.com/redhat-developer/odo-fork/pkg/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// TaskExecIDP is the Build Task or the Runtime Task execution implementation of the IDP
-func TaskExecIDP(Client *kclient.Client, componentConfig config.LocalConfigInfo, fullBuild bool, devPack *idp.IDP) error {
-	// clientset := Client.KubeClient
+// TaskExecDevfile is the Build Task or the Runtime Task execution implementation of the IDP
+func TaskExecDevfile(Client *kclient.Client, componentConfig config.LocalConfigInfo, fullBuild bool, devfile *devfile.Devfile) error {
 	namespace := Client.Namespace
 	cmpName := componentConfig.GetName()
 	appName := componentConfig.GetApplication()
+
 	// Namespace the component
 	namespacedKubernetesObject, err := util.NamespaceKubernetesObject(cmpName, appName)
 
 	glog.V(0).Infof("Namespace: %s\n", namespace)
 
-	// Get the IDP Scenario
-	var idpScenario idp.SpecScenario
-	if fullBuild {
-		idpScenario, err = devPack.GetScenario("full-build")
-	} else {
-		idpScenario, err = devPack.GetScenario("incremental-build")
-	}
-	if err != nil {
-		glog.V(0).Infof("Error occured while getting the scenarios from the IDP")
-		err = errors.New("Error occured while getting the scenarios from the IDP: " + err.Error())
-		return err
-	}
+	// Get the Devfile Scenario
+	// var idpScenario idp.SpecScenario
+	// if fullBuild {
+	// 	idpScenario, err = devPack.GetScenario("full-build")
+	// } else {
+	// 	idpScenario, err = devPack.GetScenario("incremental-build")
+	// }
+	// if err != nil {
+	// 	glog.V(0).Infof("Error occured while getting the scenarios from the IDP")
+	// 	err = errors.New("Error occured while getting the scenarios from the IDP: " + err.Error())
+	// 	return err
+	// }
 
-	// Get the IDP Tasks
-	var idpTasks []idp.SpecTask
-	idpTasks = devPack.GetTasks(idpScenario)
+	// // Get the IDP Tasks
+	// var idpTasks []idp.SpecTask
+	// idpTasks = devPack.GetTasks(idpScenario)
 
 	// Get the Runtime Ports
 	// runtimePorts := devPack.GetPorts()
@@ -49,32 +48,32 @@ func TaskExecIDP(Client *kclient.Client, componentConfig config.LocalConfigInfo,
 	// Get the Shared Volumes
 	// This may need to be updated to handle mount and unmount of PVCs,
 	// if user updates idp.yaml, check storage.go's Push() func for ref
-	idpPVC := make(map[string]*corev1.PersistentVolumeClaim)
-	sharedVolumes := devPack.GetSharedVolumes()
+	// idpPVC := make(map[string]*corev1.PersistentVolumeClaim)
+	// sharedVolumes := devPack.GetSharedVolumes()
 
-	for _, vol := range sharedVolumes {
-		PVCs, err := Client.GetPVCsFromSelector("app.kubernetes.io/component-name=" + cmpName + ",app.kubernetes.io/storage-name=" + vol.Name)
-		if err != nil {
-			glog.V(0).Infof("Error occured while getting the PVC")
-			err = errors.New("Unable to get the PVC: " + err.Error())
-			return err
-		}
-		if len(PVCs) == 1 {
-			existingPVC := &PVCs[0]
-			idpPVC[vol.Name] = existingPVC
-		}
-		if len(PVCs) == 0 {
-			createdPVC, err := storage.Create(Client, vol.Name, vol.Size, cmpName, appName)
-			idpPVC[vol.Name] = createdPVC
-			if err != nil {
-				glog.V(0).Infof("Error creating the PVC: " + err.Error())
-				err = errors.New("Error creating the PVC: " + err.Error())
-				return err
-			}
-		}
+	// for _, vol := range sharedVolumes {
+	// 	PVCs, err := Client.GetPVCsFromSelector("app.kubernetes.io/component-name=" + cmpName + ",app.kubernetes.io/storage-name=" + vol.Name)
+	// 	if err != nil {
+	// 		glog.V(0).Infof("Error occured while getting the PVC")
+	// 		err = errors.New("Unable to get the PVC: " + err.Error())
+	// 		return err
+	// 	}
+	// 	if len(PVCs) == 1 {
+	// 		existingPVC := &PVCs[0]
+	// 		idpPVC[vol.Name] = existingPVC
+	// 	}
+	// 	if len(PVCs) == 0 {
+	// 		createdPVC, err := storage.Create(Client, vol.Name, vol.Size, cmpName, appName)
+	// 		idpPVC[vol.Name] = createdPVC
+	// 		if err != nil {
+	// 			glog.V(0).Infof("Error creating the PVC: " + err.Error())
+	// 			err = errors.New("Error creating the PVC: " + err.Error())
+	// 			return err
+	// 		}
+	// 	}
 
-		glog.V(0).Infof("Using PVC: %s\n", idpPVC[vol.Name].GetName())
-	}
+	// 	glog.V(0).Infof("Using PVC: %s\n", idpPVC[vol.Name].GetName())
+	// }
 
 	serviceAccountName := "default"
 	glog.V(0).Infof("Service Account: %s\n", serviceAccountName)
@@ -163,7 +162,7 @@ func TaskExecIDP(Client *kclient.Client, componentConfig config.LocalConfigInfo,
 			"app":        namespacedKubernetesObject,
 			"deployment": namespacedKubernetesObject,
 		}
-		if po, err = createComponentFromIDP(devPack, namespace, serviceAccountName, labels); err != nil {
+		if po, err = createComponentFromDevfile(devfile, namespacedKubernetesObject, namespace, serviceAccountName, labels); err != nil {
 			err = errors.New("Unable to create component deployment: " + err.Error())
 			return err
 		}
@@ -179,13 +178,13 @@ func TaskExecIDP(Client *kclient.Client, componentConfig config.LocalConfigInfo,
 	}
 
 	// Execute task on component
-	runTasks(Client, idpTasks, po)
+	// runActions(Client, actions, po)
 
 	return nil
 }
 
 // Create the component based on all containers referenced in the IDP, we will have a single fat pod with all containers
-func createComponentFromIDP(devPack *idp.IDP, namespace, serviceAccount string, labels map[string]string) (*corev1.Pod, error) {
+func createComponentFromDevfile(devfile *devfile.Devfile, componentName, namespace, serviceAccount string, labels map[string]string) (*corev1.Pod, error) {
 
 	// Get all the possible tasks that can be run
 	// var tasks []idp.SpecTask = devPack.Spec.Tasks
@@ -202,10 +201,12 @@ func createComponentFromIDP(devPack *idp.IDP, namespace, serviceAccount string, 
 	// Get a container reference for each container in the set
 	containers := []corev1.Container{}
 
-	for _, devContainer := range devPack.Spec.Shared.Containers {
-		glog.V(0).Info("Shared container: ", devContainer.Name)
-		k8container := kclient.GenerateContainerSpec(devContainer.Name, devContainer.Image, true)
-		containers = append(containers, k8container)
+	for _, component := range devfile.Components {
+		if component.Type == "dockerimage" && component.Alias != nil {
+			glog.V(0).Info("Component image: ", component.Image)
+			k8container := kclient.GenerateContainerSpec(*component.Alias, *component.Image, true)
+			containers = append(containers, k8container)
+		}
 	}
 
 	if len(containers) == 0 {

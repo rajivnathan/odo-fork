@@ -28,7 +28,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // componentSourceURLAnnotation is an source url from which component was build
@@ -75,21 +74,15 @@ func GetComponentDir(path string, paramType config.SrcType) (string, error) {
 
 //BuildTask is a struct of essential data
 type BuildTask struct {
-	UseRuntime         bool
-	Kind               string
+	// UseRuntime         bool
 	Name               string
 	Image              string
 	ContainerName      string
 	PodName            string
 	Namespace          string
-	WorkspaceID        string
 	ServiceAccountName string
 	PullSecret         string
-	OwnerReferenceName string
-	OwnerReferenceUID  types.UID
 	Privileged         bool
-	Ingress            string
-	PVCName            []string
 	MountPath          []string
 	SubPath            []string
 	Labels             map[string]string
@@ -251,7 +244,7 @@ func GetComponentLinkedSecretNames(client *kclient.Client, componentName string,
 // CreateFromPath create new component with source or binary from the given local path
 // sourceType indicates the source type of the component and can be either local or binary
 // envVars is the array containing the environment variables
-func (b *BuildTask) CreateFromPath(client *kclient.Client, params kclient.CreateArgs) error {
+func CreateFromPath(client *kclient.Client, params kclient.CreateArgs) error {
 	labels := componentlabels.GetLabels(params.Name, params.ApplicationName, true)
 
 	// Parse componentImageType before adding to labels
@@ -372,7 +365,7 @@ func (b *BuildTask) CreateComponent(client *kclient.Client, componentConfig conf
 	// cmpType := componentConfig.GetType()
 	cmpSrcType := componentConfig.GetSourceType()
 	cmpPorts := componentConfig.GetPorts()
-	appName := componentConfig.GetApplication()
+	// appName := componentConfig.GetApplication()
 	envVarsList := componentConfig.GetEnvVars()
 
 	// create and get the storage to be created/mounted during the component creation
@@ -384,21 +377,21 @@ func (b *BuildTask) CreateComponent(client *kclient.Client, componentConfig conf
 	createArgs := kclient.CreateArgs{
 		Name: cmpName,
 		// ImageName:          cmpType,
-		ImageName:       b.Image,
-		ApplicationName: appName,
-		EnvVars:         envVarsList.ToStringSlice(),
-		UseRunTime:      b.UseRuntime,
+		ImageName: b.Image,
+		// ApplicationName: appName,
+		EnvVars: envVarsList.ToStringSlice(),
+		// UseRunTime:      b.UseRuntime,
 	}
 	createArgs.SourceType = cmpSrcType
 	createArgs.SourcePath = componentConfig.GetSourceLocation()
 
-	if b.UseRuntime {
-		storageToBeMounted := make(map[string]*corev1.PersistentVolumeClaim)
-		for i := range b.PVCName {
-			storageToBeMounted[b.MountPath[i]+"#"+b.SubPath[i]] = pvc[i]
-		}
-		createArgs.StorageToBeMounted = storageToBeMounted
-	}
+	// if b.UseRuntime {
+	// 	storageToBeMounted := make(map[string]*corev1.PersistentVolumeClaim)
+	// 	for i := range b.PVCName {
+	// 		storageToBeMounted[b.MountPath[i]+"#"+b.SubPath[i]] = pvc[i]
+	// 	}
+	// 	createArgs.StorageToBeMounted = storageToBeMounted
+	// }
 
 	// If the user overrides ports in the udo config, set them as the component's ports instead (Rather than what the IDP specified)
 	if len(cmpPorts) > 0 {
@@ -438,11 +431,11 @@ func (b *BuildTask) CreateComponent(client *kclient.Client, componentConfig conf
 			return fmt.Errorf("component creation with args %+v as path needs to be a directory", createArgs)
 		}
 		// Create
-		if err = b.CreateFromPath(client, createArgs); err != nil {
+		if err = CreateFromPath(client, createArgs); err != nil {
 			return errors.Wrapf(err, "failed to create component with args %+v", createArgs)
 		}
 	case config.BINARY:
-		if err = b.CreateFromPath(client, createArgs); err != nil {
+		if err = CreateFromPath(client, createArgs); err != nil {
 			return errors.Wrapf(err, "failed to create component with args %+v", createArgs)
 		}
 	default:
@@ -453,7 +446,7 @@ func (b *BuildTask) CreateComponent(client *kclient.Client, componentConfig conf
 			return errors.Wrap(err, "failed to create component with current directory as source for the component")
 		}
 		createArgs.SourcePath = dir
-		if err = b.CreateFromPath(client, createArgs); err != nil {
+		if err = CreateFromPath(client, createArgs); err != nil {
 			return errors.Wrapf(err, "")
 		}
 	}

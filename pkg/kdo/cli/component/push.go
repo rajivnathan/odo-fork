@@ -139,7 +139,7 @@ func (po *PushOptions) Validate() (err error) {
 	return nil
 }
 
-func (po *PushOptions) createCmpIfNotExistsAndApplyCmpConfig(stdout io.Writer) error {
+func (po *PushOptions) createCmpIfNotExistsAndApplyCmpConfig(stdout io.Writer) (err error) {
 	if !po.pushConfig {
 		// Not the case of component creation or updation(with new config)
 		// So nothing to do here and hence return from here
@@ -149,16 +149,28 @@ func (po *PushOptions) createCmpIfNotExistsAndApplyCmpConfig(stdout io.Writer) e
 	// Output the "new" section (applying changes)
 	log.Info("\nConfiguration changes")
 
-	component.TaskExec(po.Context.Client, *po.localConfig, po.fullBuild, po.Context.DevPack)
+	if po.Context.Devfile != nil {
+		glog.V(0).Info("Using Devfile")
+		err = component.TaskExecDevfile(po.Context.Client, *po.localConfig, po.fullBuild, po.Context.Devfile)
+		if err != nil {
+			kdoutil.LogErrorAndExit(err, "Failed to create component")
+		}
+	} else if po.Context.DevPack != nil {
+		glog.V(0).Info("Using IDP")
+		err = component.TaskExecIDP(po.Context.Client, *po.localConfig, po.fullBuild, po.Context.DevPack)
+		if err != nil {
+			kdoutil.LogErrorAndExit(err, "Failed to create component")
+		}
+	}
 
 	// TODO-KDO: Add when implementing update
 	// // Apply config
-	err := component.ApplyConfig(po.Context.Client, *po.localConfig, stdout)
+	err = component.ApplyConfig(po.Context.Client, *po.localConfig, stdout)
 	if err != nil {
 		kdoutil.LogErrorAndExit(err, "Failed to update config to component deployed")
 	}
 
-	return nil
+	return
 }
 
 // Run has the logic to perform the required actions as part of command
