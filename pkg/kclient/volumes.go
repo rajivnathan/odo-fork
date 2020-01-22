@@ -74,6 +74,7 @@ func (c *Client) AddPVCToDeployment(dep *appsv1.Deployment, pvc string, path, su
 
 // AddPVCToPod adds the given PVC to the given pod
 // at the given path
+// TODO: (rajivnathan) - volumes should be added to containers
 func AddPVCToPod(pod *corev1.Pod, pvc, path, subPath string) error {
 	volumeName := generateVolumeNameFromPVC(pvc)
 
