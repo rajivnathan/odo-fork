@@ -61,7 +61,7 @@ func (pdo *PushDevfileOptions) Run() (err error) {
 	}
 
 	componentName := pdo.Context.DevfileComponent.Name
-	spinner := log.Spinnerf("Push devfile component %s")
+	spinner := log.Spinnerf("Push devfile component %s", componentName)
 	defer spinner.End(false)
 
 	devfileHandler, err := componentDevfile.NewPlatformAdapter(devObj, pdo.Context.DevfileComponent)
