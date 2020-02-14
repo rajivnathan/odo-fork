@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	componentDevfile "github.com/openshift/odo/pkg/component/devfile"
 	"github.com/openshift/odo/pkg/devfile"
+	"github.com/openshift/odo/pkg/devfile/adapters"
 	"github.com/openshift/odo/pkg/log"
 	cli "github.com/openshift/odo/pkg/odo/cli/devfile"
 	"github.com/openshift/odo/pkg/odo/cli/project"
@@ -60,11 +60,11 @@ func (pdo *PushDevfileOptions) Run() (err error) {
 		return err
 	}
 
-	componentName := pdo.Context.DevfileComponent.Name
+	componentName := pdo.Context.OdoComponent.Name
 	spinner := log.Spinnerf("Push devfile component %s", componentName)
 	defer spinner.End(false)
 
-	devfileHandler, err := componentDevfile.NewPlatformAdapter(devObj, pdo.Context.DevfileComponent)
+	devfileHandler, err := adapters.NewPlatformAdapter(devObj, pdo.Context.OdoComponent)
 	if err != nil {
 		return err
 	}
