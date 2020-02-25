@@ -1,8 +1,10 @@
 package kclient
 
 import (
+	"github.com/openshift/odo/pkg/devfile/versions/common"
 	"github.com/pkg/errors"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -62,4 +64,31 @@ func CreateObjectMeta(name, namespace string, labels, annotations map[string]str
 	}
 
 	return objectMeta
+}
+
+// AddPVCAndVolumeMount adds PVC and volume mount to the pod template spec
+// volumeNameToPVC is a map of volume name to the PVC created
+// componentAliasToVolumes is a map of the Devfile container alias to the Devfile Volumes
+func AddPVCAndVolumeMount(podTemplateSpec *corev1.PodTemplateSpec, volumeNameToPVC map[string]*corev1.PersistentVolumeClaim, componentAliasToVolumes map[string][]common.DockerimageVolume) error {
+	for vol, pvc := range volumeNameToPVC {
+		pvcName := pvc.Name
+		generatedVolumeName := generateVolumeNameFromPVC(pvcName)
+		AddPVCToPodTemplateSpec(podTemplateSpec, generatedVolumeName, pvcName)
+
+		// componentAliasToMountPaths is a map of the Devfile container alias to their Devfile Volume Mount Paths for a given Volume Name
+		componentAliasToMountPaths := make(map[string][]string)
+		for containerName, volumes := range componentAliasToVolumes {
+			for _, volume := range volumes {
+				if vol == *volume.Name {
+					componentAliasToMountPaths[containerName] = append(componentAliasToMountPaths[containerName], *volume.ContainerPath)
+				}
+			}
+		}
+
+		err := AddVolumeMountToPodTemplateSpec(podTemplateSpec, generatedVolumeName, pvcName, componentAliasToMountPaths)
+		if err != nil {
+			return errors.New("Unable to add volumes mounts to the pod: " + err.Error())
+		}
+	}
+	return nil
 }

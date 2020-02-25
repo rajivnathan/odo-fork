@@ -43,6 +43,23 @@ func (a *Adapter) GetContainers() []corev1.Container {
 	return containers
 }
 
+// GetVolumes iterates through the components in the devfile and returns a slice of the corresponding containers
+func (a *Adapter) GetVolumes() map[string][]common.DockerimageVolume {
+	// componentAliasToVolumes is a map of the Devfile Component Alias to the Devfile Component Volumes
+	componentAliasToVolumes := make(map[string][]common.DockerimageVolume)
+	// Only components with aliases are considered because without an alias commands cannot reference them
+	for _, comp := range a.Devfile.Data.GetAliasedComponents() {
+		if comp.Type == common.DevfileComponentTypeDockerimage {
+			if comp.Volumes != nil {
+				for _, volume := range comp.Volumes {
+					componentAliasToVolumes[*comp.Alias] = append(componentAliasToVolumes[*comp.Alias], volume)
+				}
+			}
+		}
+	}
+	return componentAliasToVolumes
+}
+
 // Start updates the component if a matching component exists or creates one if it doesn't exist
 func (a Adapter) Start() (err error) {
 	componentName := a.ComponentName
@@ -56,8 +73,35 @@ func (a Adapter) Start() (err error) {
 		return fmt.Errorf("No valid components found in the devfile")
 	}
 
+	componentAliasToVolumes := a.GetVolumes()
+
+	// Get a list of all the unique volume names
+	var uniqueVolumes []string
+	processedVolumes := make(map[string]bool)
+	for _, volumes := range componentAliasToVolumes {
+		for _, vol := range volumes {
+			if _, ok := processedVolumes[*vol.Name]; !ok {
+				processedVolumes[*vol.Name] = true
+				uniqueVolumes = append(uniqueVolumes, *vol.Name)
+			}
+		}
+	}
+
+	// createComponentStorage creates PVC from the unique Devfile volumes and returns a map of volume name to the PVC created
+	volumeNameToPVC, err := createComponentStorage(&a.Client, uniqueVolumes, componentName)
+	if err != nil {
+		return err
+	}
+
 	objectMeta := kclient.CreateObjectMeta(componentName, a.Client.Namespace, labels, nil)
 	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers)
+
+	// Add PVC to the podTemplateSpec
+	err = kclient.AddPVCAndVolumeMount(podTemplateSpec, volumeNameToPVC, componentAliasToVolumes)
+	if err != nil {
+		return err
+	}
+
 	deploymentSpec := kclient.GenerateDeploymentSpec(*podTemplateSpec)
 
 	glog.V(3).Infof("Creating deployment %v", deploymentSpec.Template.GetName())
