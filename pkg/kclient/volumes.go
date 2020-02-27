@@ -3,6 +3,7 @@ package kclient
 import (
 	"fmt"
 
+	"github.com/openshift/odo/pkg/util"
 	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +14,9 @@ import (
 const (
 	PersistentVolumeClaimKind       = "PersistentVolumeClaim"
 	PersistentVolumeClaimAPIVersion = "v1"
+
+	// The length of the string to be generated for names of resources
+	nameLength = 5
 )
 
 // CreatePVC creates a PVC resource in the cluster with the given name, size and labels
@@ -31,7 +35,7 @@ func (c *Client) CreatePVC(objectMeta metav1.ObjectMeta, pvcSpec corev1.Persiste
 }
 
 // AddPVCToPodTemplateSpec adds the given PVC to the podTemplateSpec
-func AddPVCToPodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, pvc, volumeName string) {
+func AddPVCToPodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, volumeName, pvc string) {
 
 	podTemplateSpec.Spec.Volumes = append(podTemplateSpec.Spec.Volumes, corev1.Volume{
 		Name: volumeName,
@@ -44,15 +48,15 @@ func AddPVCToPodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, pvc, volum
 }
 
 // AddVolumeMountToPodTemplateSpec adds the Volume Mounts in containerMountPathsMap to the podTemplateSpec containers for a given PVC pvc and volume volumeName
-// containerMountPathsMap is a map of a container name/alias to an array of Mount Paths
-func AddVolumeMountToPodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, volumeName, pvc string, containerMountPathsMap map[string][]string) error {
+// componentAliasToMountPaths is a map of a container name/alias to an array of Mount Paths
+func AddVolumeMountToPodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, volumeName, pvc string, componentAliasToMountPaths map[string][]string) error {
 
 	// Validating podTemplateSpec.Spec.Containers[] is present before dereferencing
 	if len(podTemplateSpec.Spec.Containers) == 0 {
 		return fmt.Errorf("podTemplateSpec %s doesn't have any Containers defined", podTemplateSpec.ObjectMeta.Name)
 	}
 
-	for containerName, mountPaths := range containerMountPathsMap {
+	for containerName, mountPaths := range componentAliasToMountPaths {
 		for i, container := range podTemplateSpec.Spec.Containers {
 			if container.Name == containerName {
 				for _, mountPath := range mountPaths {
@@ -81,4 +85,10 @@ func (c *Client) GetPVCsFromSelector(selector string) ([]corev1.PersistentVolume
 	}
 
 	return pvcList.Items, nil
+}
+
+// generateVolumeNameFromPVC generates a random volume name based on the name
+// of the given PVC
+func generateVolumeNameFromPVC(pvc string) string {
+	return fmt.Sprintf("%v-%v-volume", pvc, util.GenerateRandomString(nameLength))
 }

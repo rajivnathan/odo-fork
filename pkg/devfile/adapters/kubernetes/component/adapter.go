@@ -27,8 +27,8 @@ type Adapter struct {
 	common.AdapterContext
 }
 
-// Start updates the component if a matching component exists or creates one if it doesn't exist
-func (a Adapter) Start() (err error) {
+// Initialize initilizes the component from the devfile
+func (a Adapter) Initialize() (*corev1.PodTemplateSpec, error) {
 	componentName := a.ComponentName
 
 	labels := map[string]string{
@@ -37,11 +37,44 @@ func (a Adapter) Start() (err error) {
 
 	containers := utils.GetContainers(a.Devfile)
 	if len(containers) == 0 {
-		return fmt.Errorf("No valid components found in the devfile")
+		return nil, fmt.Errorf("No valid components found in the devfile")
 	}
 
 	objectMeta := kclient.CreateObjectMeta(componentName, a.Client.Namespace, labels, nil)
 	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers)
+	return podTemplateSpec, nil
+}
+
+// Start updates the component if a matching component exists or creates one if it doesn't exist
+func (a Adapter) Start(podTemplateSpec *corev1.PodTemplateSpec) (err error) {
+	componentName := a.ComponentName
+
+	// 	componentAliasToVolumes := utils.GetVolumes(a.Devfile)
+
+	// 	// Get a list of all the unique volume names
+	// 	var uniqueVolumes []string
+	// 	processedVolumes := make(map[string]bool)
+	// 	for _, volumes := range componentAliasToVolumes {
+	// 		for _, vol := range volumes {
+	// 			if _, ok := processedVolumes[*vol.Name]; !ok {
+	// 				processedVolumes[*vol.Name] = true
+	// 				uniqueVolumes = append(uniqueVolumes, *vol.Name)
+	// 			}
+	// 		}
+	// 	}
+
+	// 	// createComponentStorage creates PVC from the unique Devfile volumes and returns a map of volume name to the PVC created
+	// 	volumeNameToPVC, err := utils.CreateComponentStorage(&a.Client, uniqueVolumes, componentName)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	// Add PVC to the podTemplateSpec
+	// 	err = kclient.AddPVCAndVolumeMount(podTemplateSpec, volumeNameToPVC, componentAliasToVolumes)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
 	deploymentSpec := kclient.GenerateDeploymentSpec(*podTemplateSpec)
 
 	glog.V(3).Infof("Creating deployment %v", deploymentSpec.Template.GetName())
