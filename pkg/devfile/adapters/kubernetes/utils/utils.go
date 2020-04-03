@@ -172,21 +172,28 @@ func UpdateContainersWithSupervisord(devfileObj devfile.DevfileObj, containers [
 
 }
 
-// GetVolumes iterates through the components in the devfile and returns a map of component alias to the devfile volumes
-func GetVolumes(devfileObj devfile.DevfileObj) map[string][]adaptersCommon.DevfileVolume {
-	// componentAliasToVolumes is a map of the Devfile Component Alias to the Devfile Component Volumes
-	componentAliasToVolumes := make(map[string][]adaptersCommon.DevfileVolume)
+// GetVolumes iterates through the components in the devfile and returns component-volume pairs
+func GetVolumes(devfileObj devfile.DevfileObj) []adaptersCommon.ComponentVolumesPair {
+	// componentAliasToVolumes maps the Devfile Component Alias to the Devfile Component Volumes
+	componentAliasToVolumes := []adaptersCommon.ComponentVolumesPair{}
 	size := volumeSize
 	for _, comp := range adaptersCommon.GetSupportedComponents(devfileObj.Data) {
 		if comp.Volumes != nil {
+			volumes := []adaptersCommon.DevfileVolume{}
 			for _, volume := range comp.Volumes {
 				vol := adaptersCommon.DevfileVolume{
 					Name:          volume.Name,
 					ContainerPath: volume.ContainerPath,
 					Size:          &size,
 				}
-				componentAliasToVolumes[*comp.Alias] = append(componentAliasToVolumes[*comp.Alias], vol)
+				volumes = append(volumes, vol)
 			}
+
+			volumeData := adaptersCommon.ComponentVolumesPair{
+				ComponentAlias: *comp.Alias,
+				Volumes:        volumes,
+			}
+			componentAliasToVolumes = append(componentAliasToVolumes, volumeData)
 		}
 	}
 	return componentAliasToVolumes
